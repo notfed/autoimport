@@ -13,5 +13,12 @@ Sample autoimport C file header, "sample.c" (excluding the ----------) :
 --------------------------
 
 Assuming the above header is the top of "sample.c", typing:
-$ autoimport -r /usr/local/autoimport sample.c
+$ autoimport /usr/local/autoimport sample.c
 would import apple.c, banana.c, cupcake.c, and donut.c, and any of their dependencies--recursively--from /usr/local/autoimport.
+
+TODO:
+In addition, if autoimport sees any lines of the format:
+--------------------------
+#include "elephant.h"
+--------------------------
+...then autoimport imports those, too.
