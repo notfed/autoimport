@@ -10,6 +10,8 @@
 %use critbit0_contains;
 %use critbit0_allprefixed;
 %use critbit0_clear;
+%use copyfile;
+%use checkfile;
 %use getln;
 %use open_read;
 %use str_start;
@@ -20,6 +22,7 @@
 %use strerr_die;
 */
 #include "critbit0.h"
+#include "copyfile.h"
 #include "str0.h"
 #include "buffer.h"
 #include "stralloc.h"
@@ -30,6 +33,7 @@
 #include "open.h"
 #include "exit.h"
 #include "str.h"
+#include "checkfile.h"
 
 #define puts(s) buffer_putsalign(buffer_1,(s))
 #define putsflush(s) buffer_putsflush(buffer_1,(s))
@@ -44,6 +48,8 @@ static critbit0_tree executables;
 static limitmalloc_pool pool = { 65536 };
 static stralloc line = {0}; 
 static stralloc modc = {0}; 
+static stralloc repomodc = {0}; 
+static stralloc autoimport_repo = {0};
 static char buffer_f_space[BUFFER_INSIZE];
 static buffer buffer_f;
 
@@ -54,7 +60,10 @@ static void cleanup()
     critbit0_clear(&allmodules,&pool);
     critbit0_clear(&nextup,&pool);
 }
-
+static void err_sys(const char *func)
+{
+    strerr_die3sys(111,FATAL,func,": ");
+}
 static void err_open(str0 dep)
 {
     strerr_die4sys(111,FATAL,"failed to open '",dep,"': ");
@@ -97,7 +106,15 @@ static int dependon(str0 m)
 
     /* Open module source file */
     fd = open_read(modc.s);
-    if(fd<0) err_open(modc.s);
+    if(fd<0) {
+        /* don't have it, check in repository */
+        if(!stralloc_copys(&repomodc,autoimport_repo.s)) err_memhard();
+        if(!stralloc_cats(&repomodc,"/")) err_memhard(); 
+        if(!stralloc_cats(&repomodc,modc.s)) err_memhard(); 
+        if(!stralloc_0(&repomodc)) err_memhard();
+        fd = open_read(repomodc.s);
+        if(fd<0) err_open(repomodc.s);
+    }
     buffer_init(&buffer_f,buffer_unixread,fd,buffer_f_space,sizeof buffer_f_space);
 
     /* Read first line */
@@ -174,11 +191,44 @@ static int moredepends()
     return 0;
 }
 
+/* doimport */
+static stralloc filename_from = {0};
+static void doimport(const char *filename_to)
+{
+    /* build /usr/local/autoimport/{module}.c string */
+    if(!stralloc_copys(&filename_from,autoimport_repo.s)) err_memhard();
+    if(!stralloc_cats(&filename_from,"/")) err_memhard();
+    if(!stralloc_cats(&filename_from,filename_to)) err_memhard();
+    if(!stralloc_0(&filename_from)) err_memhard();
+
+    /* copy the file! */
+    puts("autoimport: importing file: ");
+    puts(filename_from.s); putsflush("\n");
+    if(copyfile(filename_from.s,filename_to)<0) 
+        err_sys("copyfile");
+}
+
 /* importall */
+static stralloc module_dot_c = {0};
 static str0 importall_arg;
 static int importall_callback(void)
 {
-    puts(importall_arg); putsflush(".c\n");
+    int rc;
+    /* build {module}.c string */
+    if(!stralloc_copys(&module_dot_c,importall_arg)) err_memhard();
+    if(!stralloc_cats(&module_dot_c,".c")) err_memhard();
+    if(!stralloc_0(&module_dot_c)) err_memhard();
+
+    /* make sure module_dot_c doesn't exist */
+    rc = checkfile(module_dot_c.s);
+    if(rc<0) err_sys("checkfile");
+    if(rc==0) {
+      /* copy /usr/local/autoimport/{module}.c to {module.c} */
+      doimport(module_dot_c.s);
+    } else {
+      /* file with same name is already imported */
+      return 1;
+    }
     str0_free(&importall_arg,&pool);
     return 1;
 }
@@ -214,10 +264,12 @@ int main(int argc, char*argv[])
     int i,len,rc;
     char *p;
     if(argc<=1) {
-        strerr_die1x(100,"autoimport: usage: autoimport [files ...]");
+        strerr_die1x(100,"autoimport: usage: autoimport /usr/local/autoimport [files ...]");
     }
+    if(!stralloc_copys(&autoimport_repo,argv[1])) err_memhard();
+    if(!stralloc_0(&autoimport_repo)) err_memhard();
 
-    for(i=1;i<argc;i++)
+    for(i=2;i<argc;i++)
     {
         /* grow a new tree */
         critbit0_clear(&modules,&pool);

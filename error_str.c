@@ -25,6 +25,7 @@ const char *error_str(int i)
   X(error_proto,"protocol error")
   X(error_isdir,"is a directory")
   X(error_connrefused,"connection refused")
+  X(error_inval,"invalid argument")
 #ifdef ESRCH
   X(ESRCH,"no such process")
 #endif
@@ -60,9 +61,6 @@ const char *error_str(int i)
 #endif
 #ifdef ENOTDIR
   X(ENOTDIR,"not a directory")
-#endif
-#ifdef EINVAL
-  X(EINVAL,"invalid argument")
 #endif
 #ifdef ENFILE
   X(ENFILE,"system cannot open more files")

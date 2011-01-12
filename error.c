@@ -121,3 +121,10 @@ ECONNREFUSED;
 #else
 -17;
 #endif
+
+int error_inval=
+#ifdef EINVAL
+EINVAL;
+#else
+-18;
+#endif
