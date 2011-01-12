@@ -1,0 +1,17 @@
+autoimport is meant to complement automaker, for a quick development process.
+
+Generally, autoimport looks at all selected files--given as commandline arguments--for each file, autoimport looks for a comment at the top of the file, with a list of lines of the form "%use x;" To automaker, "%use x;" means "import the file x.c from an autoimport repository.
+
+Sample autoimport C file header, "sample.c" (excluding the ----------) :
+--------------------------
+/*
+%use apple;
+%use banana;
+%use cupcake;
+%use donut;
+*/
+--------------------------
+
+Assuming the above header is the top of "sample.c", typing:
+$ autoimport -r /usr/local/autoimport sample.c
+would import apple.c, banana.c, cupcake.c, and donut.c, and any of their dependencies--recursively--from /usr/local/autoimport.
