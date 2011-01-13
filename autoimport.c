@@ -12,6 +12,7 @@
 %use critbit0_clear;
 %use copyfile;
 %use checkfile;
+%use checkdir;
 %use getln;
 %use open_read;
 %use str_start;
@@ -34,6 +35,7 @@
 #include "exit.h"
 #include "str.h"
 #include "checkfile.h"
+#include "checkdir.h"
 
 #define puts(s) buffer_putsalign(buffer_1,(s))
 #define putsflush(s) buffer_putsflush(buffer_1,(s))
@@ -240,25 +242,6 @@ static int importall()
     return 0;
 }
 
-/* cleanall */
-static str0 cleanall_arg;
-static int cleanall_callback(void)
-{
-    puts(" ");
-    puts(cleanall_arg);
-    str0_free(&cleanall_arg,&pool);
-    return 1;
-}
-static int cleanall()
-{
-    str0 empty = "";
-    puts("clean : \n	rm -f *.o");
-    if(critbit0_allprefixed(&executables, &pool, &cleanall_arg, &empty, cleanall_callback)!=1)
-          err_memsoft();
-    puts("\n");
-    return 0;
-}
-
 int main(int argc, char*argv[])
 {
     int i,len,rc;
@@ -266,6 +249,8 @@ int main(int argc, char*argv[])
     if(argc<=1) {
         strerr_die1x(100,"autoimport: usage: autoimport /usr/local/autoimport [files ...]");
     }
+    if(checkdir(argv[1])<=0) 
+        strerr_die3x(111,FATAL,argv[1]," is not a directory");
     if(!stralloc_copys(&autoimport_repo,argv[1])) err_memhard();
     if(!stralloc_0(&autoimport_repo)) err_memhard();
 

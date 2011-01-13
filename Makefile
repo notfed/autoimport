@@ -8,8 +8,8 @@ compile :
 	echo '#!/bin/sh' > compile
 	echo 'exec cc -c $${1+"$$@"}' >> compile
 	chmod +x compile
-autoimport : load autoimport.o alloc.o alloc_re.o buffer_0.o buffer_1.o buffer_2.o buffer_get.o buffer_init.o buffer_put.o buffer_read.o buffer_write.o byte_chr.o byte_copy.o byte_copyr.o checkfile.o copyfile.o critbit0_allprefixed.o critbit0_clear.o critbit0_contains.o critbit0_insert.o error.o error_str.o getln.o getln2.o limitmalloc_close.o limitmalloc_open.o limitmalloc_open_if2.o open_read.o str0_copyc.o str0_equalc.o str0_free.o str0_length.o str_len.o str_start.o stralloc_append.o stralloc_catb.o stralloc_cats.o stralloc_copyb.o stralloc_copys.o stralloc_ready.o strerr_die.o strerr_sys.o
-	./load autoimport alloc.o alloc_re.o buffer_0.o buffer_1.o buffer_2.o buffer_get.o buffer_init.o buffer_put.o buffer_read.o buffer_write.o byte_chr.o byte_copy.o byte_copyr.o checkfile.o copyfile.o critbit0_allprefixed.o critbit0_clear.o critbit0_contains.o critbit0_insert.o error.o error_str.o getln.o getln2.o limitmalloc_close.o limitmalloc_open.o limitmalloc_open_if2.o open_read.o str0_copyc.o str0_equalc.o str0_free.o str0_length.o str_len.o str_start.o stralloc_append.o stralloc_catb.o stralloc_cats.o stralloc_copyb.o stralloc_copys.o stralloc_ready.o strerr_die.o strerr_sys.o
+autoimport : load autoimport.o alloc.o alloc_re.o buffer_0.o buffer_1.o buffer_2.o buffer_get.o buffer_init.o buffer_put.o buffer_read.o buffer_write.o byte_chr.o byte_copy.o byte_copyr.o checkdir.o checkfile.o copyfile.o critbit0_allprefixed.o critbit0_clear.o critbit0_contains.o critbit0_insert.o error.o error_str.o getln.o getln2.o limitmalloc_close.o limitmalloc_open.o limitmalloc_open_if2.o open_read.o str0_copyc.o str0_equalc.o str0_free.o str0_length.o str_len.o str_start.o stralloc_append.o stralloc_catb.o stralloc_cats.o stralloc_copyb.o stralloc_copys.o stralloc_ready.o strerr_die.o strerr_sys.o
+	./load autoimport alloc.o alloc_re.o buffer_0.o buffer_1.o buffer_2.o buffer_get.o buffer_init.o buffer_put.o buffer_read.o buffer_write.o byte_chr.o byte_copy.o byte_copyr.o checkdir.o checkfile.o copyfile.o critbit0_allprefixed.o critbit0_clear.o critbit0_contains.o critbit0_insert.o error.o error_str.o getln.o getln2.o limitmalloc_close.o limitmalloc_open.o limitmalloc_open_if2.o open_read.o str0_copyc.o str0_equalc.o str0_free.o str0_length.o str_len.o str_start.o stralloc_append.o stralloc_catb.o stralloc_cats.o stralloc_copyb.o stralloc_copys.o stralloc_ready.o strerr_die.o strerr_sys.o
 alloc.o : compile alloc.c
 	./compile alloc.c
 alloc_re.o : compile alloc_re.c
@@ -38,6 +38,8 @@ byte_copy.o : compile byte_copy.c
 	./compile byte_copy.c
 byte_copyr.o : compile byte_copyr.c
 	./compile byte_copyr.c
+checkdir.o : compile checkdir.c
+	./compile checkdir.c
 checkfile.o : compile checkfile.c
 	./compile checkfile.c
 copyfile.o : compile copyfile.c
