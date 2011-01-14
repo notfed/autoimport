@@ -1,4 +1,8 @@
-autoimport is meant to complement automaker, for a quick development process.
+----------------------------
+       autoimport
+----------------------------
+autoimport is meant to complement automaker, for a quick development process for C projects. 
+autoimport will look for an automaker header in your source code, and pull all dependent files from a specified directory (called the autoimport repository).
 
 autoimport looks at all selected files, given as commandline arguments.  Generally, for each file, autoimport looks for a comment at the top of the file, with a list of lines of the form "%use X;" To autoimport, "%use X;" means "import the file X.c from an autoimport repository.
 
