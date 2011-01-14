@@ -1,28 +1,34 @@
-----------------------------
-       autoimport
-----------------------------
+autoimport-20110114
+Jay Sullivan
+Public Domain
+
 autoimport is meant to complement automaker, for a quick development process for C projects. 
 autoimport will look for an automaker header in your source code, and pull all dependent files from a specified directory (called the autoimport repository).
 
 autoimport looks at all selected files, given as commandline arguments.  Generally, for each file, autoimport looks for a comment at the top of the file, with a list of lines of the form "%use X;" To autoimport, "%use X;" means "import the file X.c from an autoimport repository.
 
-Sample autoimport C file header, "sample.c" (excluding the ----------) :
---------------------------
-/*
-%use apple;
-%use banana;
-%use cupcake;
-%use donut;
-*/
---------------------------
+Sample autoimport C file header, "sample.c" (excluding the indentation):
 
-Assuming the above header is the top of "sample.c", typing:
-$ autoimport /usr/local/autoimport sample.c
-would import apple.c, banana.c, cupcake.c, and donut.c, and any of their dependencies--recursively--from /usr/local/autoimport.
+	/*
+	%use apple;
+	%use banana;
+	%use cupcake;
+	%use donut;
+	*/
 
+Assuming the above header is at the top of "sample.c"; running the command:
+
+	$ autoimport /usr/local/autoimport sample.c
+
+would import apple.c, banana.c, cupcake.c, and donut.c, and any of their dependencies--recursively--from /usr/local/autoimport.  If all these files are found, they are copied into the current directory.  automaker should then work:
+
+	$ automaker sample.c > Makefile
+
+
+----------------------
 TODO:
 In addition, if autoimport sees any lines of the format:
---------------------------
-#include "elephant.h"
---------------------------
+
+	#include "elephant.h"
+
 ...then autoimport imports those, too.
