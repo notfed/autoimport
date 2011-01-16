@@ -37,9 +37,6 @@
 #include "checkfile.h"
 #include "checkdir.h"
 
-#define puts(s) buffer_putsalign(buffer_1,(s))
-#define putsflush(s) buffer_putsflush(buffer_1,(s))
-#define putflush() buffer_flush(buffer_1)
 #define FATAL "autoimport: error: "
 
 static critbit0_tree modules;
@@ -137,7 +134,8 @@ static int dependon(str0 m)
 
       /* Make sure line is of format "%use MODULE;\n" */
       if(line.len<8) continue;
-      if(!str_start(line.s,"%use ")) continue; 
+      if(str_start(line.s,"%use ")) 
+      {
       if(line.s[line.len-2]!=';') continue;
 
  
@@ -160,6 +158,7 @@ static int dependon(str0 m)
       {
         if(!critbit0_contains(&nextup,&newmod))
           if(!critbit0_insert(&nextup,&pool,&newmod)) err_memsoft();
+      }
       }
     } 
 
@@ -204,8 +203,10 @@ static void doimport(const char *filename_to)
     if(!stralloc_0(&filename_from)) err_memhard();
 
     /* copy the file! */
-    puts("autoimport: importing file: ");
-    puts(filename_from.s); putsflush("\n");
+    buffer_putsalign(buffer_1,"autoimport: importing file: ");
+    buffer_putsalign(buffer_1,filename_from.s); 
+    buffer_putsalign(buffer_1,"\n");
+    buffer_flush(buffer_1);
     if(copyfile(filename_from.s,filename_to)<0) 
         err_sys("copyfile");
 }
