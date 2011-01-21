@@ -44,6 +44,7 @@ static critbit0_tree nextup;
 static critbit0_tree objfiles;
 static critbit0_tree allmodules;
 static critbit0_tree executables;
+static critbit0_tree headers;
 static limitmalloc_pool pool = { 65536 };
 static stralloc line = {0}; 
 static stralloc modc = {0}; 
@@ -83,6 +84,58 @@ static void forceclose(int fd)
     }
 }
 
+static void autoimport_include()
+{
+    char *hdrname;
+    if(line.s[line.len-1]!='"') continue;
+    line.s[line.len-1] = 0;
+    hdrname = line.s+10;
+    if(!critbit0_contains(&headers,&hdrname))
+        if(!critbit0_insert(&headers,&pool,&hdrname)) err_memsoft();
+        
+}
+static void autoimport_commentheader()
+{
+    int match;
+    for(;;) {
+        
+      /* Read next line */
+      rc = getln(&buffer_f,&line,&match,'\n');
+      if(rc<0 || !match) break;
+
+      /* If line is a comment ender, we're done with this file */
+      if(str_start(line.s,"*/")) break;
+
+      /* Make sure line is of format "%use MODULE;\n" */
+      if(line.len<8) continue;
+      if(str_start(line.s,"%use ")) 
+      {
+        if(line.s[line.len-2]!=';') continue;
+ 
+        if(line.s[line.len-4]=='.' && line.s[line.len-3]=='o')
+        {
+          /* extract just the module name */
+          line.s[line.len-2] = 0;
+          newmod = line.s + 5;
+          if(!critbit0_contains(&objfiles,&newmod))
+            if(!critbit0_insert(&objfiles,&pool,&newmod)) err_memsoft();
+          continue;
+        }
+        /* extract just the module name */
+        line.s[line.len-2] = 0;
+        newmod = line.s + 5;
+
+
+        /* Put the name in the tree */
+        if(str_start(line.s,"%use "))
+        {
+          if(!critbit0_contains(&nextup,&newmod))
+            if(!critbit0_insert(&nextup,&pool,&newmod)) err_memsoft();
+        }
+      }
+    } 
+}
+
 /* Read the file {m}.c and read all of its dependencies into the tree */
 static int dependon(str0 m)
 {
@@ -116,51 +169,20 @@ static int dependon(str0 m)
     }
     buffer_init(&buffer_f,buffer_unixread,fd,buffer_f_space,sizeof buffer_f_space);
 
-    /* Read first line */
-    rc = getln(&buffer_f,&line,&match,'\n');
-    if(rc<0) { forceclose(fd); return 1; }
-
-    /* Make sure first line is a comment start */
-    if(!str_start(line.s,"/*")) { forceclose(fd); return 0; }
-
+    /* Read next line */
     for(;;) {
-        
-      /* Read next line */
       rc = getln(&buffer_f,&line,&match,'\n');
-      if(rc<0 || !match) break;
+      if(rc<0 || !match) { forceclose(fd); return 0; }
 
-      /* If line is a comment ender, we're done with this file */
-      if(str_start(line.s,"*/")) break;
-
-      /* Make sure line is of format "%use MODULE;\n" */
-      if(line.len<8) continue;
-      if(str_start(line.s,"%use ")) 
-      {
-      if(line.s[line.len-2]!=';') continue;
-
- 
-      if(line.s[line.len-4]=='.' && line.s[line.len-3]=='o')
-      {
-        /* extract just the module name */
-        line.s[line.len-2] = 0;
-        newmod = line.s + 5;
-        if(!critbit0_contains(&objfiles,&newmod))
-          if(!critbit0_insert(&objfiles,&pool,&newmod)) err_memsoft();
-        continue;
+      /* If #include, depend on include file */
+      if(str_start(line.s,"#include \"")) {
+        autoimport_include();
       }
-      /* extract just the module name */
-      line.s[line.len-2] = 0;
-      newmod = line.s + 5;
-
-
-      /* Put the name in the tree */
-      if(str_start(line.s,"%use "))
-      {
-        if(!critbit0_contains(&nextup,&newmod))
-          if(!critbit0_insert(&nextup,&pool,&newmod)) err_memsoft();
+      /* Make sure first line is a comment start */
+      else if(str_start(line.s,"/*"))  {
+        autoimport_commentheader();
       }
-      }
-    } 
+    }
 
     /* Done reading this file */
     forceclose(fd);
@@ -243,6 +265,10 @@ static int importall()
     return 0;
 }
 
+void allheaders()
+{
+}
+
 int main(int argc, char*argv[])
 {
     int i,len,rc;
@@ -288,7 +314,7 @@ int main(int argc, char*argv[])
     /* Cleanup time */
     cleanup();
 
-    putflush();
+    buffer_flush(buffer_1);
 
     return 0;
 }
