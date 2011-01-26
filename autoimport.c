@@ -45,6 +45,7 @@ static critbit0_tree objfiles;
 static critbit0_tree allmodules;
 static critbit0_tree executables;
 static critbit0_tree headers;
+static critbit0_tree allheaders;
 static limitmalloc_pool pool = { 65536 };
 static stralloc line = {0}; 
 static stralloc modc = {0}; 
@@ -52,6 +53,7 @@ static stralloc repomodc = {0};
 static stralloc autoimport_repo = {0};
 static char buffer_f_space[BUFFER_INSIZE];
 static buffer buffer_f;
+static str0 empty = "";
 
 static void cleanup()
 {
@@ -84,19 +86,23 @@ static void forceclose(int fd)
     }
 }
 
-static void autoimport_include()
+static int autoimport_include(stralloc *line)
 {
-    char *hdrname;
-    if(line.s[line.len-1]!='"') continue;
-    line.s[line.len-1] = 0;
-    hdrname = line.s+10;
-    if(!critbit0_contains(&headers,&hdrname))
+    str0 hdrname;
+    if(line->len<11) return 0;
+    if(!str_start(line->s,"#include \"")) return 0;
+    if(line->s[line->len-2]!='"') return 0;
+    line->s[line->len-2] = 0;
+    hdrname = line->s+10;
+    if(!critbit0_contains(&headers,&hdrname)) 
         if(!critbit0_insert(&headers,&pool,&hdrname)) err_memsoft();
-        
+    return 1;
 }
 static void autoimport_commentheader()
 {
+    int rc;
     int match;
+    str0 newmod;
     for(;;) {
         
       /* Read next line */
@@ -111,7 +117,6 @@ static void autoimport_commentheader()
       if(str_start(line.s,"%use ")) 
       {
         if(line.s[line.len-2]!=';') continue;
- 
         if(line.s[line.len-4]=='.' && line.s[line.len-3]=='o')
         {
           /* extract just the module name */
@@ -125,35 +130,33 @@ static void autoimport_commentheader()
         line.s[line.len-2] = 0;
         newmod = line.s + 5;
 
-
         /* Put the name in the tree */
-        if(str_start(line.s,"%use "))
-        {
-          if(!critbit0_contains(&nextup,&newmod))
-            if(!critbit0_insert(&nextup,&pool,&newmod)) err_memsoft();
-        }
+        if(!critbit0_contains(&nextup,&newmod))
+          if(!critbit0_insert(&nextup,&pool,&newmod)) err_memsoft();
       }
     } 
 }
 
 /* Read the file {m}.c and read all of its dependencies into the tree */
-static int dependon(str0 m)
+static int dependon(str0 m, int isheader)
 {
     int fd;
     int rc;
     int match;
-    str0 newmod;
 
     /* No use in reading a module twice */
-    if(critbit0_contains(&modules,&m)) return 0;
-
-    /* Add the module to the tree */
-    if(!critbit0_insert(&modules,&pool,&m)) err_memsoft();
-    if(!critbit0_insert(&allmodules,&pool,&m)) err_memsoft();
+    if(isheader) {
+      if(critbit0_contains(&allheaders,&m)) return 0; 
+      if(!critbit0_insert(&allheaders,&pool,&m)) err_memsoft();
+    } else {
+      if(critbit0_contains(&modules,&m)) return 0;
+      if(!critbit0_insert(&modules,&pool,&m)) err_memsoft();
+      if(!critbit0_insert(&allmodules,&pool,&m)) err_memsoft();
+    }
 
     /* {m}.c is a new module */
     if(!stralloc_copys(&modc,m)) err_memhard();
-    if(!stralloc_cats(&modc,".c")) err_memhard(); 
+    if(!isheader) if(!stralloc_cats(&modc,".c")) err_memhard(); 
     if(!stralloc_0(&modc)) err_memhard();
 
     /* Open module source file */
@@ -175,11 +178,9 @@ static int dependon(str0 m)
       if(rc<0 || !match) { forceclose(fd); return 0; }
 
       /* If #include, depend on include file */
-      if(str_start(line.s,"#include \"")) {
-        autoimport_include();
-      }
-      /* Make sure first line is a comment start */
-      else if(str_start(line.s,"/*"))  {
+      if(autoimport_include(&line)) continue;
+      /* If comment start, parse comment header */
+      if(str_start(line.s,"/*"))  {
         autoimport_commentheader();
       }
     }
@@ -190,29 +191,58 @@ static int dependon(str0 m)
 }
 
 /* moredepends */
-static int newcount;
+static int moredepends_newcount;
 static str0 moredepends_arg;
-int moredepends_callback(void)
+static int moredepends_callback(void)
 {
-    ++newcount;
-    if(dependon(moredepends_arg)!=0) return 0;
+    ++moredepends_newcount;
+    if(dependon(moredepends_arg,0)!=0) return 0;
     str0_free(&moredepends_arg,&pool);
     return 1;
 }
 static int moredepends()
 {
     int oldcount;
-    str0 empty = "";
-    oldcount = 0;
-    newcount = 0;
+    moredepends_newcount = 0;
+    /* do normal files */
     do {
-      oldcount = newcount;
-      newcount = 0;
+      oldcount = moredepends_newcount;
+      moredepends_newcount = 0;
       if(critbit0_allprefixed(&nextup, &pool, &moredepends_arg, &empty, moredepends_callback)!=1) 
           err_memsoft();
-    } while(newcount!=oldcount);
+    } while(moredepends_newcount!=oldcount);
+    oldcount = 0;
+    moredepends_newcount = 0;
     return 0;
 }
+
+/* moreheaders */
+static int moreheaders_newcount;
+static str0 moreheaders_arg;
+static int moreheaders_callback(void)
+{
+    ++moreheaders_newcount;
+    if(dependon(moreheaders_arg,1)!=0) return 0;
+    str0_free(&moreheaders_arg,&pool);
+    return 1;
+}
+static int moreheaders()
+{
+    int oldcount;
+    str0 empty = "";
+    moreheaders_newcount = 0;
+    /* do header files */
+    do {
+      oldcount = moreheaders_newcount;
+      moreheaders_newcount = 0;
+      if(critbit0_allprefixed(&headers, &pool, &moreheaders_arg, &empty, moreheaders_callback)!=1) 
+          err_memsoft();
+    } while(moreheaders_newcount!=oldcount);
+    oldcount = 0;
+    moreheaders_newcount = 0;
+    return 0;
+}
+
 
 /* doimport */
 static stralloc filename_from = {0};
@@ -230,18 +260,19 @@ static void doimport(const char *filename_to)
     buffer_putsalign(buffer_1,"\n");
     buffer_flush(buffer_1);
     if(copyfile(filename_from.s,filename_to)<0) 
-        err_sys("copyfile");
+        strerr_die6sys(111,FATAL,"copying ",filename_from.s," to ",filename_to,": ");
 }
 
 /* importall */
 static stralloc module_dot_c = {0};
 static str0 importall_arg;
+static str0 importall_extension;
 static int importall_callback(void)
 {
     int rc;
     /* build {module}.c string */
     if(!stralloc_copys(&module_dot_c,importall_arg)) err_memhard();
-    if(!stralloc_cats(&module_dot_c,".c")) err_memhard();
+    if(!stralloc_cats(&module_dot_c,importall_extension)) err_memhard();
     if(!stralloc_0(&module_dot_c)) err_memhard();
 
     /* make sure module_dot_c doesn't exist */
@@ -260,13 +291,13 @@ static int importall_callback(void)
 static int importall()
 {
     str0 empty = "";
+    importall_extension = ".c";
     if(critbit0_allprefixed(&allmodules, &pool, &importall_arg, &empty, importall_callback)!=1) 
           err_memsoft();
+    importall_extension = "";
+    if(critbit0_allprefixed(&allheaders, &pool, &importall_arg, &empty, importall_callback)!=1) 
+          err_memsoft();
     return 0;
-}
-
-void allheaders()
-{
 }
 
 int main(int argc, char*argv[])
@@ -301,14 +332,17 @@ int main(int argc, char*argv[])
             if(!critbit0_insert(&executables,&pool,&p)) err_memsoft();
 
         /* add module to tree along with its dependents */
-        if((rc=dependon(argv[i]))!=0) return rc;
+        if((rc=dependon(argv[i],0))!=0) return rc;
 
         /* recursively get more dependencies */
         if((rc=moredepends())!=0) return rc;
 
+        /* recursively get more dependencies */
+        if((rc=moreheaders())!=0) return rc;
+
     }
 
-    /* list all modules to compile them */
+    /* import all modules */
     if((rc=importall())!=0) return rc;
 
     /* Cleanup time */
