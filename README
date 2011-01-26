@@ -24,10 +24,8 @@ would import apple.c, banana.c, cupcake.c, and donut.c, and any of their depende
 
 	$ automaker sample.c > Makefile
 
-
-----------------------
-In addition, if autoimport sees any lines of the format:
+In addition to "%use" statements, if autoimport sees any lines of the format:
 
 	#include "elephant.h"
 
-...then autoimport imports those header files from /usr/local/autoimport, too.
+then autoimport will import the header file from /usr/local/autoimport into the current directory.
