@@ -74,10 +74,8 @@ static void err_memsoft()
 {
     strerr_die2x(111,FATAL,"memory limit exceeded");
 }
-static void err_memhard()
-{
-    _exit(111);
-}
+#define err_memhard() _exit(111)
+
 static void forceclose(int fd)
 {
     if(close(fd)==-1) 
